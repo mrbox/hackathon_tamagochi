@@ -1,76 +1,126 @@
-import type { Pet, PetState } from '$lib/types/Pet.js';
-import { GAME_CONFIG } from '$lib/config/gameConfig.js';
+import type { Pet } from '$lib/models/Pet';
 
-export class GameEngine {
-  static updatePetStats(pet: Pet): Pet {
-    const timeDiff = Date.now() - pet.lastUpdate.getTime();
-    const updates = Math.floor(timeDiff / GAME_CONFIG.UPDATE_INTERVAL);
-    
-    if (updates === 0) return pet;
-    
-    const newPet = { ...pet };
-    
-    // Naturalny spadek statystyk
-    newPet.hunger = Math.max(0, pet.hunger - (GAME_CONFIG.DECAY_RATES.HUNGER * updates));
-    newPet.happiness = Math.max(0, pet.happiness - (GAME_CONFIG.DECAY_RATES.HAPPINESS * updates));
-    newPet.energy = Math.max(0, pet.energy - (GAME_CONFIG.DECAY_RATES.ENERGY * updates));
-    
-    // Wpływ na zdrowie
-    if (newPet.hunger < 10 || newPet.happiness < 10) {
-      newPet.health = Math.max(0, newPet.health - 2);
-    }
-    
-    // Aktualizacja wieku
-    newPet.age += updates * (GAME_CONFIG.UPDATE_INTERVAL / (1000 * 60 * 60)); // w godzinach
-    
-    newPet.lastUpdate = new Date();
-    newPet.state = this.calculateState(newPet);
-    
-    return newPet;
-  }
+// Funkcja karmienia zwierzaka
+export const feedPet = (pet: Pet): Pet => {
+  if (pet.state === 'dead') return pet;
+  
+  return {
+    ...pet,
+    hunger: Math.max(0, pet.hunger - 30),
+    happiness: Math.min(100, pet.happiness + 10),
+    health: Math.min(100, pet.health + 5),
+    state: pet.hunger <= 30 ? 'full' : 'happy',
+    totalInteractions: pet.totalInteractions + 1,
+    lastInteraction: Date.now(),
+    experience: pet.experience + 5
+  };
+};
 
-  static feedPet(pet: Pet): Pet {
-    const effects = GAME_CONFIG.ACTION_EFFECTS.FEED;
-    return {
-      ...pet,
-      hunger: Math.min(100, pet.hunger + effects.hunger),
-      happiness: Math.min(100, pet.happiness + effects.happiness),
-      state: this.calculateState({
-        ...pet,
-        hunger: Math.min(100, pet.hunger + effects.hunger),
-        happiness: Math.min(100, pet.happiness + effects.happiness),
-      })
-    };
-  }
+// Funkcja zabawy ze zwierzakiem
+export const playWithPet = (pet: Pet): Pet => {
+  if (pet.state === 'dead' || pet.state === 'sleeping') return pet;
+  
+  return {
+    ...pet,
+    happiness: Math.min(100, pet.happiness + 25),
+    hunger: Math.min(100, pet.hunger + 10),
+    health: Math.min(100, pet.health + 2),
+    state: 'happy',
+    totalInteractions: pet.totalInteractions + 1,
+    lastInteraction: Date.now(),
+    experience: pet.experience + 10
+  };
+};
 
-  static playWithPet(pet: Pet): Pet {
-    if (pet.energy < 10) return pet; // Za mało energii
-    
-    const effects = GAME_CONFIG.ACTION_EFFECTS.PLAY;
-    return {
-      ...pet,
-      happiness: Math.min(100, pet.happiness + effects.happiness),
-      energy: Math.max(0, pet.energy + effects.energy),
-      hunger: Math.max(0, pet.hunger + effects.hunger),
-      state: 'playing'
-    };
-  }
+// Funkcja usypiania zwierzaka
+export const putToSleep = (pet: Pet): Pet => {
+  if (pet.state === 'dead') return pet;
+  
+  return {
+    ...pet,
+    health: Math.min(100, pet.health + 15),
+    happiness: Math.max(0, pet.happiness - 5),
+    state: 'sleeping',
+    totalInteractions: pet.totalInteractions + 1,
+    lastInteraction: Date.now(),
+    experience: pet.experience + 3
+  };
+};
 
-  static putPetToSleep(pet: Pet): Pet {
-    const effects = GAME_CONFIG.ACTION_EFFECTS.SLEEP;
-    return {
-      ...pet,
-      energy: Math.min(100, pet.energy + effects.energy),
-      hunger: Math.max(0, pet.hunger + effects.hunger),
-      state: 'sleeping'
-    };
+// Funkcja aktualizacji stanu zwierzaka (wywoływana cyklicznie)
+export const updatePetState = (pet: Pet): Pet => {
+  if (pet.state === 'dead') return pet;
+  
+  // Zwiększ głód
+  const newHunger = Math.min(100, pet.hunger + 5);
+  
+  // Zmniejsz szczęście jeśli głodny
+  const newHappiness = newHunger > 70 ? Math.max(0, pet.happiness - 3) : pet.happiness;
+  
+  // Zmniejsz zdrowie jeśli bardzo głodny lub nieszczęśliwy
+  const newHealth = (newHunger > 90 || newHappiness < 20) 
+    ? Math.max(0, pet.health - 2) 
+    : pet.health;
+  
+  // Określ nowy stan
+  let newState: Pet['state'] = pet.state;
+  if (newHealth <= 0) {
+    newState = 'dead';
+  } else if (newHunger > 80) {
+    newState = 'hungry';
+  } else if (newHappiness > 80 && newHunger < 50) {
+    newState = 'happy';
+  } else if (pet.state === 'sleeping') {
+    newState = 'happy'; // Obudź się po śnie
   }
+  
+  // Oblicz nowy wiek (w dniach)
+  const now = Date.now();
+  const ageInDays = Math.floor((now - pet.createdAt) / (1000 * 60 * 60 * 24));
+  
+  // Oblicz nowy poziom na podstawie doświadczenia
+  const newLevel = Math.floor(pet.experience / 100) + 1;
+  
+  // Określ etap ewolucji
+  let newStage = pet.stage;
+  if (ageInDays >= 7 && pet.stage === 'baby') {
+    newStage = 'teen';
+  } else if (ageInDays >= 14 && pet.stage === 'teen') {
+    newStage = 'adult';
+  } else if (ageInDays >= 30 && pet.stage === 'adult') {
+    newStage = 'elder';
+  }
+  
+  return {
+    ...pet,
+    hunger: newHunger,
+    happiness: newHappiness,
+    health: newHealth,
+    state: newState,
+    age: ageInDays,
+    level: newLevel,
+    stage: newStage
+  };
+};
 
-  static calculateState(pet: Pet): PetState {
-    if (pet.health <= 0) return 'dead';
-    if (pet.health < GAME_CONFIG.CRITICAL_LEVELS.HEALTH) return 'sick';
-    if (pet.energy < GAME_CONFIG.CRITICAL_LEVELS.ENERGY) return 'sleeping';
-    if (pet.hunger < GAME_CONFIG.CRITICAL_LEVELS.HUNGER) return 'hungry';
-    return 'happy';
-  }
-}
+// Funkcja sprawdzania czy gra się skończyła
+export const isGameOver = (pet: Pet): boolean => {
+  return pet.state === 'dead';
+};
+
+// Funkcja resetowania gry
+export const resetGame = (): Pet => {
+  return {
+    hunger: 0,
+    happiness: 100,
+    health: 100,
+    state: 'happy',
+    age: 0,
+    stage: 'baby',
+    experience: 0,
+    level: 1,
+    totalInteractions: 0,
+    lastInteraction: Date.now(),
+    createdAt: Date.now()
+  };
+};
