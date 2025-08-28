@@ -179,7 +179,6 @@
     <p>Opiekuj się swoim zwierzakiem! 🎮</p>
   </div>
 </div>
-{/if}
 
 <style>
   .tamagotchi-app {

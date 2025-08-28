@@ -1,4 +1,5 @@
 import type { Pet } from '$lib/models/Pet';
+import { browser } from '$app/environment';
 
 const STORAGE_KEY = 'tamagotchi-pet-state';
 const STATS_KEY = 'tamagotchi-stats';
@@ -13,6 +14,7 @@ export interface GameStats {
 
 // Zapisz stan zwierzaka
 export const savePetState = (pet: Pet): void => {
+  if (!browser) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(pet));
   } catch (error) {
@@ -22,6 +24,7 @@ export const savePetState = (pet: Pet): void => {
 
 // Wczytaj stan zwierzaka
 export const loadPetState = (): Pet | null => {
+  if (!browser) return null;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -35,6 +38,7 @@ export const loadPetState = (): Pet | null => {
 
 // Zapisz statystyki gry
 export const saveGameStats = (stats: GameStats): void => {
+  if (!browser) return;
   try {
     localStorage.setItem(STATS_KEY, JSON.stringify(stats));
   } catch (error) {
@@ -44,6 +48,17 @@ export const saveGameStats = (stats: GameStats): void => {
 
 // Wczytaj statystyki gry
 export const loadGameStats = (): GameStats => {
+  if (!browser) {
+    // Zwróć domyślne statystyki dla SSR
+    return {
+      totalPlayTime: 0,
+      totalInteractions: 0,
+      petsRaised: 0,
+      achievements: [],
+      lastSaved: Date.now()
+    };
+  }
+  
   try {
     const saved = localStorage.getItem(STATS_KEY);
     if (saved) {
@@ -65,6 +80,7 @@ export const loadGameStats = (): GameStats => {
 
 // Wyczyść wszystkie dane
 export const clearAllData = (): void => {
+  if (!browser) return;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(STATS_KEY);
 };
