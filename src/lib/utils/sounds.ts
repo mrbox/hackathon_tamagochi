@@ -2,46 +2,63 @@ class SoundManager {
   private sounds: Map<string, HTMLAudioElement> = new Map();
   private enabled: boolean = true;
   private volume: number = 0.3;
+  private initialized: boolean = false;
 
   constructor() {
-    this.initializeSounds();
+    // Inicjalizacja tylko po stronie klienta
+    if (typeof window !== 'undefined') {
+      this.initializeSounds();
+    }
   }
 
   private initializeSounds() {
-    // Tworzenie dźwięków programowo (bez plików audio)
-    this.createBeepSound('feed', 800, 0.1);
-    this.createBeepSound('play', 600, 0.15);
-    this.createBeepSound('sleep', 400, 0.2);
-    this.createBeepSound('levelup', 1200, 0.2);
-    this.createBeepSound('achievement', 1000, 0.3);
-    this.createBeepSound('death', 200, 0.4);
+    if (this.initialized || typeof window === 'undefined') return;
+    
+    try {
+      // Tworzenie dźwięków programowo (bez plików audio)
+      this.createBeepSound('feed', 800, 0.1);
+      this.createBeepSound('play', 600, 0.15);
+      this.createBeepSound('sleep', 400, 0.2);
+      this.createBeepSound('levelup', 1200, 0.2);
+      this.createBeepSound('achievement', 1000, 0.3);
+      this.createBeepSound('death', 200, 0.4);
+      this.initialized = true;
+    } catch (error) {
+      console.warn('Błąd inicjalizacji dźwięków:', error);
+    }
   }
 
   private createBeepSound(name: string, frequency: number, duration: number) {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
 
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
 
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(this.volume, audioContext.currentTime + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(this.volume, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
 
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + duration);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
 
-    // Zapisz referencję do dźwięku
-    const audio = new Audio();
-    this.sounds.set(name, audio);
+      // Zapisz referencję do dźwięku
+      const audio = new Audio();
+      this.sounds.set(name, audio);
+    } catch (error) {
+      console.warn('Błąd tworzenia dźwięku:', error);
+    }
   }
 
   play(soundName: string) {
-    if (!this.enabled) return;
+    if (!this.enabled || typeof window === 'undefined') return;
 
     try {
       const sound = this.sounds.get(soundName);
