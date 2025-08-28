@@ -1,6 +1,77 @@
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import { GameEngine } from '$lib/logic/gameEngine.js';
+  import { StorageService } from '$lib/services/storageService.js';
+  import Screen from '$lib/components/Screen.svelte';
+  import StatusBars from '$lib/components/StatusBars.svelte';
+  import type { Pet } from '$lib/types/Pet.js';
+
+  let pet: Pet;
+  let gameInterval: number;
+
+  onMount(() => {
+    // Wczytaj lub utwórz nowego pet
+    const savedPet = StorageService.loadPet();
+    pet = savedPet ? GameEngine.updatePetStats(savedPet) : StorageService.createNewPet();
+    
+    // Uruchom główną pętlę gry
+    gameInterval = setInterval(() => {
+      pet = GameEngine.updatePetStats(pet);
+      StorageService.savePet(pet);
+    }, 5000);
+  });
+
+  onDestroy(() => {
+    if (gameInterval) {
+      clearInterval(gameInterval);
+    }
+  });
+
+  // Action handlers
+  const handleFeed = () => {
+    if (pet.state !== 'dead') {
+      pet = GameEngine.feedPet(pet);
+      StorageService.savePet(pet);
+    }
+  };
+
+  const handlePlay = () => {
+    if (pet.state !== 'dead' && pet.energy >= 10) {
+      pet = GameEngine.playWithPet(pet);
+      StorageService.savePet(pet);
+      
+      // Reset po 2 sekundach
+      setTimeout(() => {
+        if (pet.state === 'playing') {
+          pet = { ...pet, state: GameEngine.calculateState(pet) };
+        }
+      }, 2000);
+    }
+  };
+
+  const handleSleep = () => {
+    if (pet.state !== 'dead') {
+      pet = GameEngine.putPetToSleep(pet);
+      StorageService.savePet(pet);
+      
+      // Obudź po 5 sekundach
+      setTimeout(() => {
+        if (pet.state === 'sleeping') {
+          pet = { ...pet, state: GameEngine.calculateState(pet) };
+        }
+      }, 5000);
+    }
+  };
+
+  const resetGame = () => {
+    pet = StorageService.createNewPet();
+    StorageService.savePet(pet);
+  };
+</script>
+
+{#if pet}
 <div class="tamagotchi-container">
   <div class="tamagotchi-device">
-    <!-- Device Shell -->
     <div class="device-shell">
       <!-- Top Section -->
       <div class="top-section">
@@ -9,38 +80,31 @@
       
       <!-- Main Screen Area -->
       <div class="screen-section">
-        <div class="screen-bezel">
-          <div class="screen">
-            <div class="screen-content">
-              <!-- This will be where the tamagotchi character appears -->
-              <div class="character-area">
-                <div class="pixel-character">🐣</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Screen {pet} />
       </div>
       
       <!-- Control Section -->
       <div class="control-section">
         <!-- Status Bars -->
-        <div class="status-bars">
-          <div class="status-bar red"></div>
-          <div class="status-bar green"></div>
-          <div class="status-bar blue"></div>
-        </div>
+        <StatusBars {pet} />
         
         <!-- Control Buttons -->
         <div class="button-group">
-          <button class="control-button">
+          <button class="control-button" 
+                  on:click={handleFeed}
+                  disabled={pet.state === 'dead'}>
             <span class="button-label">EAT</span>
             <span class="button-number">3</span>
           </button>
-          <button class="control-button">
+          <button class="control-button" 
+                  on:click={handleSleep}
+                  disabled={pet.state === 'dead'}>
             <span class="button-label">SLEEP</span>
             <span class="button-number">1</span>
           </button>
-          <button class="control-button">
+          <button class="control-button" 
+                  on:click={handlePlay}
+                  disabled={pet.state === 'dead' || pet.energy < 10}>
             <span class="button-label">PLAY</span>
             <span class="button-number">2</span>
           </button>
@@ -51,9 +115,19 @@
           <div class="speaker-holes"></div>
         </div>
       </div>
+      
+      <!-- Reset Button (jeśli pet umarł) -->
+      {#if pet.state === 'dead'}
+        <div class="reset-section">
+          <button class="reset-button" on:click={resetGame}>
+            New Pet
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
+{/if}
 
 <style>
   .tamagotchi-container {
@@ -183,29 +257,24 @@
     gap: 15px;
   }
 
-  .status-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 40px;
+  .control-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-
-  .status-bar {
-    height: 12px;
-    border-radius: 6px;
-    border: 1px solid #999;
+  
+  .reset-section {
+    text-align: center;
+    margin-top: 10px;
   }
-
-  .status-bar.red {
-    background: linear-gradient(90deg, #ff4444 60%, #ccc 60%);
-  }
-
-  .status-bar.green {
-    background: linear-gradient(90deg, #44ff44 80%, #ccc 80%);
-  }
-
-  .status-bar.blue {
-    background: linear-gradient(90deg, #4444ff 40%, #ccc 40%);
+  
+  .reset-button {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
   }
 
   .button-group {
