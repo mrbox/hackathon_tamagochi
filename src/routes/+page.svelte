@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { feedPet, playWithPet, putToSleep, updatePetState, resetGame, isGameOver } from '$lib/logic/gameEngine';
+  import { feedPet, playWithPet, putToSleep, performVibeCheck, updatePetState, resetGame, isGameOver } from '$lib/logic/gameEngine';
   import type { Pet } from '$lib/models/Pet';
   import type { Achievement } from '$lib/models/Achievements';
   import { checkAchievements } from '$lib/models/Achievements';
@@ -9,10 +9,11 @@
   import Screen from '$lib/components/Screen.svelte';
   import Buttons from '$lib/components/Buttons.svelte';
   import Achievements from '$lib/components/Achievements.svelte';
+  import VibeCheckModal from '$lib/components/VibeCheckModal.svelte';
 
   // Stan zwierzaka (reaktywny w Svelte)
   let pet: Pet = {
-    hunger: 0,
+    hunger: 20, // Zaczyna z lekkim głodem
     happiness: 100,
     health: 100,
     state: 'happy',
@@ -22,13 +23,17 @@
     level: 1,
     totalInteractions: 0,
     lastInteraction: Date.now(),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    vibeLevel: 50,
+    coins: 100, // startowa waluta
+    activeEffects: []
   };
 
   let gameOver = false;
   let gameInterval: number;
   let achievements: Achievement[] = [];
   let showAchievements = false;
+  let showVibeCheck = false;
   let gameStats = loadGameStats();
   let previousLevel = 1;
 
@@ -72,6 +77,18 @@
 
   const handleShowAchievements = () => {
     showAchievements = true;
+  };
+
+  const handleShowVibeCheck = () => {
+    showVibeCheck = true;
+  };
+
+  const handleVibeCheck = (emoji: string) => {
+    pet = performVibeCheck(pet, emoji);
+    gameOver = isGameOver(pet);
+    savePetState(pet);
+    checkLevelUp();
+    updateAchievements();
   };
 
   const checkLevelUp = () => {
@@ -128,7 +145,7 @@
         checkLevelUp();
         updateAchievements();
       }
-    }, 3000);
+    }, 4000); // Szybsza pętla dla lepszej responsywności
 
     return () => {
       if (gameInterval) {
@@ -169,11 +186,13 @@
       onEat={handleEat}
       onSleep={handleSleep}
       onReset={handleReset}
+      onVibeCheck={handleShowVibeCheck}
       isGameOver={gameOver}
     />
   </div>
   
   <Achievements {achievements} show={showAchievements} />
+  <VibeCheckModal show={showVibeCheck} onVibeCheck={handleVibeCheck} />
   
   <div class="app-footer">
     <p>Opiekuj się swoim zwierzakiem! 🎮</p>

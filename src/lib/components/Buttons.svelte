@@ -3,6 +3,7 @@
   export let onEat: () => void;
   export let onSleep: () => void;
   export let onReset: () => void;
+  export let onVibeCheck: () => void;
   export let isGameOver: boolean = false;
 </script>
 
@@ -34,6 +35,16 @@
       😴 ŚPIJ
     </button>
     
+    <button 
+      class="tamagotchi-button vibe-button" 
+      on:click={onVibeCheck}
+      disabled={isGameOver}
+    >
+      🎭 VIBE
+    </button>
+  </div>
+  
+  <div class="button-row">
     {#if isGameOver}
       <button 
         class="tamagotchi-button reset-button" 
@@ -44,6 +55,8 @@
     {:else}
       <div class="button-placeholder"></div>
     {/if}
+    
+    <div class="button-placeholder"></div>
   </div>
 </div>
 
@@ -130,13 +143,22 @@
     border-color: #93c5fd;
   }
   
-  .reset-button {
+  .vibe-button {
     background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
     border-color: #a78bfa;
   }
   
-  .reset-button:hover:not(:disabled) {
+  .vibe-button:hover:not(:disabled) {
     border-color: #c4b5fd;
+  }
+  
+  .reset-button {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    border-color: #f87171;
+  }
+  
+  .reset-button:hover:not(:disabled) {
+    border-color: #fca5a5;
   }
   
   .button-placeholder {

@@ -11,43 +11,46 @@
     return '#dc2626'; // ciemny czerwony
   };
   
+  // Funkcja do określania koloru paska Vibe na podstawie wartości
+  const getVibeColor = (value: number): string => {
+    if (value >= 80) return '#8b5cf6'; // fioletowy
+    if (value >= 60) return '#06b6d4'; // cyjan
+    if (value >= 40) return '#f59e0b'; // żółty
+    if (value >= 20) return '#f97316'; // pomarańczowy
+    return '#dc2626'; // czerwony
+  };
+  
   // Funkcja do określania emoji zwierzaka na podstawie stanu i etapu ewolucji
   const getPetEmoji = (state: Pet['state'], stage: Pet['stage']): string => {
     if (state === 'dead') return '💀';
+    if (state === 'sick') return '🤒';
+    if (state === 'sleeping') return '😴';
     
     switch (stage) {
       case 'egg':
-        return state === 'sleeping' ? '🥚' : '🥚';
+        return '🥚';
       case 'baby':
         switch (state) {
           case 'happy': return '🐣';
           case 'hungry': return '🐤';
-          case 'sleeping': return '🥚';
-          case 'full': return '🐣';
           default: return '🐣';
         }
       case 'teen':
         switch (state) {
           case 'happy': return '🐥';
           case 'hungry': return '🐤';
-          case 'sleeping': return '😴';
-          case 'full': return '🐥';
           default: return '🐥';
         }
       case 'adult':
         switch (state) {
           case 'happy': return '🐔';
           case 'hungry': return '🐓';
-          case 'sleeping': return '😴';
-          case 'full': return '🐔';
           default: return '🐔';
         }
       case 'elder':
         switch (state) {
           case 'happy': return '🦅';
           case 'hungry': return '🦅';
-          case 'sleeping': return '😴';
-          case 'full': return '🦅';
           default: return '🦅';
         }
       default:
@@ -102,6 +105,17 @@
         ></div>
       </div>
       <div class="status-value">{pet.health}%</div>
+    </div>
+    
+    <div class="status-bar">
+      <div class="status-label">VIBE</div>
+      <div class="bar-container">
+        <div 
+          class="bar-fill" 
+          style="width: {pet.vibeLevel}%; background-color: {getVibeColor(pet.vibeLevel)}"
+        ></div>
+      </div>
+      <div class="status-value">{pet.vibeLevel}%</div>
     </div>
   </div>
   
