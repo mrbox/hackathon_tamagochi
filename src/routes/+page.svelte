@@ -9,6 +9,7 @@
   import Screen from '$lib/components/Screen.svelte';
   import Buttons from '$lib/components/Buttons.svelte';
   import Achievements from '$lib/components/Achievements.svelte';
+  import { tamagotchiAIService } from '$lib/services/tamagotchiAIService';
 
   // Stan zwierzaka (reaktywny w Svelte)
   let pet: Pet = {
@@ -27,10 +28,13 @@
 
   let gameOver = false;
   let gameInterval: number;
+  let aiInterval: number;
   let achievements: Achievement[] = [];
   let showAchievements = false;
   let gameStats = loadGameStats();
   let previousLevel = 1;
+  let currentAIMessage = '';
+  let lastAIUpdate = 0;
 
   // Funkcje obsługi przycisków
   const handlePlay = () => {
@@ -130,9 +134,33 @@
       }
     }, 3000);
 
+    // AI messaging interval - every 30 seconds
+    aiInterval = setInterval(async () => {
+      if (!gameOver) {
+        try {
+          const response = await tamagotchiAIService.getPetResponse(pet);
+          currentAIMessage = response.message;
+          lastAIUpdate = Date.now();
+        } catch (error) {
+          console.error('Failed to get AI message:', error);
+        }
+      }
+    }, 30000);
+
+    // Get initial AI message
+    tamagotchiAIService.getPetResponse(pet).then(response => {
+      currentAIMessage = response.message;
+      lastAIUpdate = Date.now();
+    }).catch(error => {
+      console.error('Failed to get initial AI message:', error);
+    });
+
     return () => {
       if (gameInterval) {
         clearInterval(gameInterval);
+      }
+      if (aiInterval) {
+        clearInterval(aiInterval);
       }
     };
   });
@@ -164,6 +192,15 @@
     </div>
     
     <Screen {pet} />
+    
+    {#if currentAIMessage}
+      <div class="ai-message-container">
+        <div class="ai-message">
+          <div class="message-header">💭 Twój zwierzak mówi:</div>
+          <div class="message-content">{currentAIMessage}</div>
+        </div>
+      </div>
+    {/if}
     <Buttons 
       onPlay={handlePlay}
       onEat={handleEat}
@@ -289,5 +326,44 @@
   .app-footer p {
     margin: 0;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  .ai-message-container {
+    width: 420px;
+    margin: 10px 0;
+  }
+
+  .ai-message {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    border: 2px solid #60a5fa;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    animation: messageAppear 0.5s ease-out;
+  }
+
+  .message-header {
+    font-size: 12px;
+    color: #bfdbfe;
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+
+  .message-content {
+    font-size: 14px;
+    color: white;
+    line-height: 1.4;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  @keyframes messageAppear {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>

@@ -15,7 +15,7 @@ export class TamagotchiAIService {
     if (!azureOpenAIService.isConfigured()) {
       return {
         message: this.getFallbackResponse(pet.state),
-        suggestion: "Configure Azure OpenAI to enable AI interactions!"
+        suggestion: "Skonfiguruj Azure OpenAI, aby włączyć interakcje AI!"
       };
     }
 
@@ -28,7 +28,7 @@ export class TamagotchiAIService {
       if (userMessage) {
         messages.push({ role: 'user', content: userMessage });
       } else {
-        messages.push({ role: 'user', content: 'How are you feeling right now?' });
+        messages.push({ role: 'user', content: 'Jak się teraz czujesz?' });
       }
 
       const response = await azureOpenAIService.chatCompletion(messages, {
@@ -44,7 +44,7 @@ export class TamagotchiAIService {
       console.error('Failed to get AI response:', error);
       return {
         message: this.getFallbackResponse(pet.state),
-        suggestion: "AI service temporarily unavailable"
+        suggestion: "Usługa AI tymczasowo niedostępna"
       };
     }
   }
@@ -108,34 +108,36 @@ Current stats:
 - Age: ${pet.age} days
 - State: ${pet.state}
 
-Respond as this pet would, showing personality based on your current state. Keep responses short (1-2 sentences), cute, and expressive. Use emojis appropriately. If you're happy, be playful. If hungry, mention food. If tired, be sleepy. If sick, be a bit sad but still endearing.`;
+Respond as this pet would, showing personality based on your current state. Keep responses short (1-2 sentences), cute, and expressive. Use emojis appropriately. If you're happy, be playful. If hungry, mention food. If tired, be sleepy. If sick, be a bit sad but still endearing.
+
+IMPORTANT: Always respond in Polish language only.`;
   }
 
   private getFallbackResponse(state: PetState): string {
     const responses = {
-      happy: "I'm feeling great! 😊 Let's play together!",
-      hungry: "I'm so hungry... 🍎 Could you feed me please?",
-      sleeping: "Zzz... 😴 I'm having sweet dreams!",
-      playing: "This is so much fun! 🎮 I love playing with you!",
-      sick: "I don't feel very well... 🤒 Maybe I need some rest?",
-      dead: "💫 I'll always remember our time together..."
+      happy: "Czuję się świetnie! 😊 Zabawmy się razem!",
+      hungry: "Jestem taki głodny... 🍎 Czy możesz mnie nakarmić?",
+      sleeping: "Zzz... 😴 Śnią mi się słodkie sny!",
+      playing: "To takie zabawne! 🎮 Uwielbiam się z tobą bawić!",
+      sick: "Nie czuję się zbyt dobrze... 🤒 Może potrzebuję odpoczynku?",
+      dead: "💫 Na zawsze zapamiętam nasz wspólny czas..."
     };
-    return responses[state] || "Hello! I'm your virtual pet! 🐾";
+    return responses[state] || "Cześć! Jestem twoim wirtualnym zwierzątkiem! 🐾";
   }
 
   private getSuggestion(pet: Pet): string {
-    if (pet.hunger < 30) return "Your pet is hungry! Try feeding them.";
-    if (pet.happiness < 30) return "Your pet seems sad. Try playing with them!";
-    if (pet.energy < 20) return "Your pet is tired. Let them sleep.";
-    if (pet.health < 50) return "Your pet's health is low. Make sure they're well-fed and rested.";
-    return "Your pet is doing well! Keep up the good care!";
+    if (pet.hunger < 30) return "Twoje zwierzątko jest głodne! Spróbuj je nakarmić.";
+    if (pet.happiness < 30) return "Twoje zwierzątko wydaje się smutne. Pobaw się z nim!";
+    if (pet.energy < 20) return "Twoje zwierzątko jest zmęczone. Pozwól mu się przespać.";
+    if (pet.health < 50) return "Zdrowie twojego zwierzątka jest niskie. Upewnij się, że jest najedzone i wypoczęte.";
+    return "Twoje zwierzątko ma się dobrze! Kontynuuj dobrą opiekę!";
   }
 
   private getFallbackAdvice(pet: Pet): string {
-    if (pet.state === 'hungry') return "Your pet is hungry! Feed them to restore their energy and happiness.";
-    if (pet.state === 'sick') return "Your pet needs rest and care. Make sure they're well-fed and get enough sleep.";
-    if (pet.happiness < 50) return "Try playing with your pet more often to boost their happiness!";
-    return "Keep maintaining a good balance of feeding, playing, and rest for your pet.";
+    if (pet.state === 'hungry') return "Twoje zwierzątko jest głodne! Nakarm je, aby przywrócić jego energię i szczęście.";
+    if (pet.state === 'sick') return "Twoje zwierzątko potrzebuje odpoczynku i opieki. Upewnij się, że jest najedzone i ma wystarczająco snu.";
+    if (pet.happiness < 50) return "Spróbuj częściej bawić się ze swoim zwierzątkiem, aby podnieść jego szczęście!";
+    return "Kontynuuj utrzymywanie dobrej równowagi między karmieniem, zabawą i odpoczynkiem dla swojego zwierzątka.";
   }
 }
 

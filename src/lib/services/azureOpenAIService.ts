@@ -1,4 +1,4 @@
-import { OpenAIApi } from '@azure/openai';
+import { AzureOpenAI } from "openai";
 import { getAzureOpenAIConfig, type AzureOpenAIConfig } from '../config/azureOpenAIConfig.js';
 
 export interface ChatMessage {
@@ -16,12 +16,17 @@ export interface OpenAIResponse {
 }
 
 export class AzureOpenAIService {
-  private client: OpenAIApi;
+  private client: AzureOpenAI;
   private config: AzureOpenAIConfig;
 
   constructor() {
     this.config = getAzureOpenAIConfig();
-    this.client = new OpenAIApi(this.config.endpoint, this.config.apiKey, this.config.apiVersion);
+    this.client = new AzureOpenAI({
+      endpoint: this.config.endpoint,
+      apiKey: this.config.apiKey,
+      apiVersion: this.config.apiVersion,
+      dangerouslyAllowBrowser: true
+    });
   }
 
   /**
@@ -38,16 +43,17 @@ export class AzureOpenAIService {
     }
   ): Promise<OpenAIResponse> {
     try {
-      const response = await this.client.getChatCompletions(this.config.deploymentName, {
+      const response = await this.client.chat.completions.create({
+        model: this.config.deploymentName,
         messages: messages.map(msg => ({
           role: msg.role,
           content: msg.content
         })),
-        maxTokens: options?.maxTokens || 500,
+        max_tokens: options?.maxTokens || 500,
         temperature: options?.temperature || 0.7,
-        topP: options?.topP || 1,
-        frequencyPenalty: options?.frequencyPenalty || 0,
-        presencePenalty: options?.presencePenalty || 0
+        top_p: options?.topP || 1,
+        frequency_penalty: options?.frequencyPenalty || 0,
+        presence_penalty: options?.presencePenalty || 0
       });
 
       const choice = response.choices[0];
@@ -58,9 +64,9 @@ export class AzureOpenAIService {
       return {
         content: choice.message.content,
         usage: response.usage ? {
-          promptTokens: response.usage.promptTokens,
-          completionTokens: response.usage.completionTokens,
-          totalTokens: response.usage.totalTokens
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens: response.usage.completion_tokens,
+          totalTokens: response.usage.total_tokens
         } : undefined
       };
     } catch (error) {
