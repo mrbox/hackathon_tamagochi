@@ -3,6 +3,24 @@
   
   export let pet: Pet;
   
+  // Hover state
+  let isHovered = false;
+  let hoverPosition = { x: 0, y: 0 };
+  
+  const handleMouseMove = (event: MouseEvent) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    hoverPosition.x = event.clientX - rect.left;
+    hoverPosition.y = event.clientY - rect.top;
+  };
+  
+  const handleMouseEnter = () => {
+    isHovered = true;
+  };
+  
+  const handleMouseLeave = () => {
+    isHovered = false;
+  };
+  
   // Funkcja do określania koloru paska na podstawie wartości
   const getBarColor = (value: number): string => {
     if (value >= 80) return '#10b981'; // zielony
@@ -59,16 +77,32 @@
   };
 </script>
 
-<div class="screen-container">
+<div class="screen-container" 
+     on:mousemove={handleMouseMove}
+     on:mouseenter={handleMouseEnter}
+     on:mouseleave={handleMouseLeave}>
   <!-- Ekran zwierzaka -->
   <div class="pet-display">
-    <div class="pet-character {pet.state}">
-      <div class="pet-emoji">
+    <div class="pet-character {pet.state}" class:animated={isHovered}>
+      <div class="pet-emoji" class:jump={isHovered && pet.state === 'happy'}>
         {getPetEmoji(pet.state, pet.stage)}
       </div>
       <div class="pet-status">
         {pet.state.toUpperCase()}
       </div>
+      
+      <!-- Hover tooltip -->
+      {#if isHovered}
+        <div class="hover-tooltip" style="left: {hoverPosition.x}px; top: {hoverPosition.y}px">
+          <div class="tooltip-content">
+            <strong>🎯 Kliknij mnie!</strong><br>
+            Głód: {pet.hunger}%<br>
+            Szczęście: {pet.happiness}%<br>
+            Zdrowie: {pet.health}%<br>
+            Vibe: {pet.vibeLevel}%
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
   
@@ -157,6 +191,13 @@
   .pet-character {
     text-align: center;
     transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .pet-character.animated {
+    transform: scale(1.05);
+    filter: brightness(1.2);
   }
   
   .pet-character.sleeping {
@@ -168,10 +209,23 @@
     filter: grayscale(100%);
   }
   
+  .pet-character.hungry {
+    animation: shake 0.5s ease-in-out infinite;
+  }
+  
+  .pet-character.sick {
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
   .pet-emoji {
     font-size: 80px;
     margin-bottom: 10px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+  }
+  
+  .pet-emoji.jump {
+    animation: bounce 0.6s ease-in-out;
   }
   
   .pet-status {
@@ -243,5 +297,91 @@
   .game-over p {
     margin: 0;
     font-size: 14px;
+  }
+  
+  /* Hover Tooltip */
+  .hover-tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    transform: translate(-50%, -100%);
+    margin-top: -10px;
+  }
+  
+  .tooltip-content {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    border: 2px solid #6b7280;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    color: white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    animation: tooltipFadeIn 0.2s ease-out;
+  }
+  
+  .tooltip-content::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #374151;
+  }
+  
+  /* Animations */
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+  }
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  @keyframes tooltipFadeIn {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -90%);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -100%);
+    }
+  }
+  
+  /* Enhanced status bar animations */
+  .bar-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
   }
 </style>

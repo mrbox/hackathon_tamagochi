@@ -1,5 +1,5 @@
 import { azureOpenAIService, type ChatMessage } from './azureOpenAIService.js';
-import type { Pet, PetState } from '../types/Pet.js';
+import type { Pet } from '../models/Pet.js';
 
 export interface PetResponse {
   message: string;
@@ -84,7 +84,7 @@ export class TamagotchiAIService {
     }
 
     try {
-      const prompt = `My virtual pet has these stats: Hunger: ${pet.hunger}%, Happiness: ${pet.happiness}%, Energy: ${pet.energy}%, Health: ${pet.health}%, Age: ${pet.age} days. Current state: ${pet.state}. Give me brief, caring advice on how to take better care of my pet.`;
+      const prompt = `My virtual pet has these stats: Hunger: ${pet.hunger}%, Happiness: ${pet.happiness}%, Health: ${pet.health}%, Vibe Level: ${pet.vibeLevel}%, Age: ${pet.age} days, Stage: ${pet.stage}. Current state: ${pet.state}. Give me brief, caring advice on how to take better care of my pet.`;
       
       return await azureOpenAIService.generateText(
         prompt,
@@ -103,22 +103,22 @@ export class TamagotchiAIService {
 Current stats:
 - Hunger: ${pet.hunger}%
 - Happiness: ${pet.happiness}%
-- Energy: ${pet.energy}%
 - Health: ${pet.health}%
+- Vibe Level: ${pet.vibeLevel}%
 - Age: ${pet.age} days
+- Stage: ${pet.stage}
 - State: ${pet.state}
 
-Respond as this pet would, showing personality based on your current state. Keep responses short (1-2 sentences), cute, and expressive. Use emojis appropriately. If you're happy, be playful. If hungry, mention food. If tired, be sleepy. If sick, be a bit sad but still endearing.
+Respond as this pet would, showing personality based on your current state. Keep responses short (1-2 sentences), cute, and expressive. Use emojis appropriately. If you're happy, be playful. If hungry, mention food. If sick, be a bit sad but still endearing.
 
 IMPORTANT: Always respond in Polish language only.`;
   }
 
-  private getFallbackResponse(state: PetState): string {
+  private getFallbackResponse(state: Pet['state']): string {
     const responses = {
       happy: "Czuję się świetnie! 😊 Zabawmy się razem!",
       hungry: "Jestem taki głodny... 🍎 Czy możesz mnie nakarmić?",
       sleeping: "Zzz... 😴 Śnią mi się słodkie sny!",
-      playing: "To takie zabawne! 🎮 Uwielbiam się z tobą bawić!",
       sick: "Nie czuję się zbyt dobrze... 🤒 Może potrzebuję odpoczynku?",
       dead: "💫 Na zawsze zapamiętam nasz wspólny czas..."
     };
@@ -126,17 +126,18 @@ IMPORTANT: Always respond in Polish language only.`;
   }
 
   private getSuggestion(pet: Pet): string {
-    if (pet.hunger < 30) return "Twoje zwierzątko jest głodne! Spróbuj je nakarmić.";
+    if (pet.hunger < 20) return "Twoje zwierzątko jest głodne! Spróbuj je nakarmić.";
     if (pet.happiness < 30) return "Twoje zwierzątko wydaje się smutne. Pobaw się z nim!";
-    if (pet.energy < 20) return "Twoje zwierzątko jest zmęczone. Pozwól mu się przespać.";
     if (pet.health < 50) return "Zdrowie twojego zwierzątka jest niskie. Upewnij się, że jest najedzone i wypoczęte.";
+    if (pet.vibeLevel < 30) return "Twoje zwierzątko ma niski vibe! Sprawdź jego nastrój!";
     return "Twoje zwierzątko ma się dobrze! Kontynuuj dobrą opiekę!";
   }
 
   private getFallbackAdvice(pet: Pet): string {
-    if (pet.state === 'hungry') return "Twoje zwierzątko jest głodne! Nakarm je, aby przywrócić jego energię i szczęście.";
-    if (pet.state === 'sick') return "Twoje zwierzątko potrzebuje odpoczynku i opieki. Upewnij się, że jest najedzone i ma wystarczająco snu.";
+    if (pet.state === 'hungry') return "Twoje zwierzątko jest głodne! Nakarm je, aby przywrócić jego szczęście i zdrowie.";
+    if (pet.state === 'sick') return "Twoje zwierzątko potrzebuje opieki. Upewnij się, że jest najedzone i ma dobry nastrój.";
     if (pet.happiness < 50) return "Spróbuj częściej bawić się ze swoim zwierzątkiem, aby podnieść jego szczęście!";
+    if (pet.vibeLevel < 30) return "Sprawdź nastrój swojego zwierzątka - może potrzebuje trochę uwagi!";
     return "Kontynuuj utrzymywanie dobrej równowagi między karmieniem, zabawą i odpoczynkiem dla swojego zwierzątka.";
   }
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { feedPet, playWithPet, putToSleep, performVibeCheck, updatePetState, resetGame, isGameOver } from '$lib/logic/gameEngine';
+  import { browser } from '$app/environment';
+  import { feedPet, playWithPet, putToSleep, updatePetState, resetGame, isGameOver, performVibeCheck } from '$lib/logic/gameEngine';
   import type { Pet } from '$lib/models/Pet';
   import type { Achievement } from '$lib/models/Achievements';
   import { checkAchievements } from '$lib/models/Achievements';
@@ -9,12 +10,13 @@
   import Screen from '$lib/components/Screen.svelte';
   import Buttons from '$lib/components/Buttons.svelte';
   import Achievements from '$lib/components/Achievements.svelte';
-  import { tamagotchiAIService } from '$lib/services/tamagotchiAIService';
   import VibeCheckModal from '$lib/components/VibeCheckModal.svelte';
+  import { tamagotchiAIService } from '$lib/services/tamagotchiAIService';
+  import type { PetResponse } from '$lib/services/tamagotchiAIService';
 
   // Stan zwierzaka (reaktywny w Svelte)
   let pet: Pet = {
-    hunger: 20, // Zaczyna z lekkim głodem
+    hunger: 100, // Zaczyna najedzony (odwrócona logika)
     happiness: 100,
     health: 100,
     state: 'happy',
@@ -32,14 +34,17 @@
 
   let gameOver = false;
   let gameInterval: number;
-  let aiInterval: number;
   let achievements: Achievement[] = [];
   let showAchievements = false;
   let showVibeCheck = false;
   let gameStats = loadGameStats();
   let previousLevel = 1;
-  let currentAIMessage = '';
-  let lastAIUpdate = 0;
+  
+  // AI Communication
+  let aiResponse: PetResponse | null = null;
+  let userMessage = '';
+  let isAILoading = false;
+  let showChat = false;
 
   // Funkcje obsługi przycisków
   const handlePlay = () => {
@@ -93,6 +98,39 @@
     savePetState(pet);
     checkLevelUp();
     updateAchievements();
+  };
+
+  // AI Functions
+  const handleShowChat = () => {
+    showChat = !showChat;
+    if (showChat && !aiResponse) {
+      getAIResponse();
+    }
+  };
+
+  const getAIResponse = async (message?: string) => {
+    if (isAILoading) return;
+    
+    isAILoading = true;
+    try {
+      aiResponse = await tamagotchiAIService.getPetResponse(pet, message);
+    } catch (error) {
+      console.error('AI Error:', error);
+      aiResponse = {
+        message: "Przepraszam, nie mogę teraz odpowiedzieć... 😔",
+        suggestion: "Spróbuj ponownie za chwilę!"
+      };
+    } finally {
+      isAILoading = false;
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!userMessage.trim() || isAILoading) return;
+    
+    const message = userMessage.trim();
+    userMessage = '';
+    await getAIResponse(message);
   };
 
   const checkLevelUp = () => {
@@ -149,35 +187,11 @@
         checkLevelUp();
         updateAchievements();
       }
-    }, 4000);
-
-    // AI messaging interval - every 30 seconds
-    aiInterval = setInterval(async () => {
-      if (!gameOver) {
-        try {
-          const response = await tamagotchiAIService.getPetResponse(pet);
-          currentAIMessage = response.message;
-          lastAIUpdate = Date.now();
-        } catch (error) {
-          console.error('Failed to get AI message:', error);
-        }
-      }
-    }, 30000);
-
-    // Get initial AI message
-    tamagotchiAIService.getPetResponse(pet).then(response => {
-      currentAIMessage = response.message;
-      lastAIUpdate = Date.now();
-    }).catch(error => {
-      console.error('Failed to get initial AI message:', error);
-    });
+    }, 3000);
 
     return () => {
       if (gameInterval) {
         clearInterval(gameInterval);
-      }
-      if (aiInterval) {
-        clearInterval(aiInterval);
       }
     };
   });
@@ -208,16 +222,7 @@
       </button>
     </div>
     
-    <Screen {pet} />
-    
-    {#if currentAIMessage}
-      <div class="ai-message-container">
-        <div class="ai-message">
-          <div class="message-header">💭 Twój zwierzak mówi:</div>
-          <div class="message-content">{currentAIMessage}</div>
-        </div>
-      </div>
-    {/if}
+      <Screen {pet} />
     <Buttons 
       onPlay={handlePlay}
       onEat={handleEat}
@@ -226,6 +231,67 @@
       onVibeCheck={handleShowVibeCheck}
       isGameOver={gameOver}
     />
+    
+    <!-- AI Chat Interface -->
+    <div class="ai-chat-section">
+      <button class="chat-toggle-button" on:click={handleShowChat}>
+        {showChat ? '💬 Ukryj Czat' : '🤖 Rozmawiaj z AI'}
+      </button>
+      
+      {#if showChat}
+        <div class="chat-container">
+          <div class="chat-header">
+            <h3>💬 Rozmowa z {pet.stage === 'baby' ? 'dzieckiem' : 
+                               pet.stage === 'teen' ? 'nastolatkiem' : 
+                               pet.stage === 'adult' ? 'dorosłym' : 
+                               pet.stage === 'elder' ? 'starszym' : 'jajkiem'}</h3>
+          </div>
+          
+          <div class="chat-messages">
+            {#if aiResponse}
+              <div class="ai-message">
+                <div class="message-content">
+                  <strong>🤖 Zwierzak:</strong> {aiResponse.message}
+                </div>
+                {#if aiResponse.suggestion}
+                  <div class="suggestion">
+                    💡 {aiResponse.suggestion}
+                  </div>
+                {/if}
+              </div>
+            {/if}
+            
+            {#if isAILoading}
+              <div class="loading-message">
+                <div class="loading-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <p>AI myśli...</p>
+              </div>
+            {/if}
+          </div>
+          
+          <div class="chat-input">
+            <input 
+              type="text" 
+              bind:value={userMessage}
+              placeholder="Napisz wiadomość do zwierzaka..."
+              on:keydown={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={isAILoading}
+            />
+            <button 
+              class="send-button" 
+              on:click={handleSendMessage}
+              disabled={!userMessage.trim() || isAILoading}
+            >
+              ➤
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
   </div>
   
   <Achievements {achievements} show={showAchievements} />
@@ -239,7 +305,11 @@
 <style>
   .tamagotchi-app {
     min-height: 100vh;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%),
+      linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -247,6 +317,33 @@
     padding: 20px;
     font-family: 'Courier New', monospace;
     color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Animated background particles */
+  .tamagotchi-app::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.1), transparent),
+      radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.1), transparent),
+      radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.1), transparent),
+      radial-gradient(1px 1px at 130px 80px, rgba(255, 255, 255, 0.1), transparent),
+      radial-gradient(2px 2px at 160px 30px, rgba(255, 255, 255, 0.1), transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: float 20s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-100px); }
   }
   
   .app-header {
@@ -347,42 +444,158 @@
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   }
 
-  .ai-message-container {
+  /* AI Chat Styles */
+  .ai-chat-section {
     width: 420px;
-    margin: 10px 0;
+    margin-top: 20px;
+  }
+
+  .chat-toggle-button {
+    width: 100%;
+    background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+    border: 2px solid #a78bfa;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .chat-toggle-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
+  }
+
+  .chat-container {
+    margin-top: 15px;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    border: 2px solid #6b7280;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%);
+    padding: 12px;
+    border-bottom: 2px solid #6b7280;
+  }
+
+  .chat-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: white;
+    text-align: center;
+  }
+
+  .chat-messages {
+    padding: 15px;
+    min-height: 120px;
+    max-height: 200px;
+    overflow-y: auto;
   }
 
   .ai-message {
-    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-    border: 2px solid #60a5fa;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    animation: messageAppear 0.5s ease-out;
-  }
-
-  .message-header {
-    font-size: 12px;
-    color: #bfdbfe;
-    margin-bottom: 8px;
-    font-weight: bold;
+    margin-bottom: 15px;
   }
 
   .message-content {
-    font-size: 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: white;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
     line-height: 1.4;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  @keyframes messageAppear {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .suggestion {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-top: 8px;
+    font-style: italic;
   }
+
+  .loading-message {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+  .loading-dots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .loading-dots span {
+    width: 8px;
+    height: 8px;
+    background: #6b7280;
+    border-radius: 50%;
+    animation: loading 1.4s infinite ease-in-out;
+  }
+
+  .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+  @keyframes loading {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+
+  .chat-input {
+    display: flex;
+    padding: 12px;
+    border-top: 2px solid #6b7280;
+    gap: 8px;
+  }
+
+  .chat-input input {
+    flex: 1;
+    background: #374151;
+    border: 2px solid #6b7280;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+  }
+
+  .chat-input input:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+
+  .chat-input input::placeholder {
+    color: #9ca3af;
+  }
+
+  .send-button {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: 2px solid #34d399;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .send-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  }
+
+  .send-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+
 </style>

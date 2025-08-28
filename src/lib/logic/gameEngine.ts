@@ -7,10 +7,10 @@ export const feedPet = (pet: Pet): Pet => {
   // Vibe Level wpływa na efektywność jedzenia
   const vibeBonus = pet.vibeLevel > 70 ? 1.2 : pet.vibeLevel < 30 ? 0.8 : 1.0;
   
-  // Jedzenie zmniejsza głód o 40-50 (losowo) + wpływ vibe
-  const baseHungerReduction = 40 + Math.floor(Math.random() * 11);
-  const hungerReduction = Math.floor(baseHungerReduction * vibeBonus);
-  const newHunger = Math.max(0, pet.hunger - hungerReduction);
+  // Jedzenie ZWIĘKSZA głód (odwrócona logika) o 40-50 (losowo) + wpływ vibe
+  const baseHungerIncrease = 40 + Math.floor(Math.random() * 11);
+  const hungerIncrease = Math.floor(baseHungerIncrease * vibeBonus);
+  const newHunger = Math.min(100, pet.hunger + hungerIncrease);
   
   // Jedzenie poprawia szczęście i zdrowie + wpływ vibe
   const newHappiness = Math.min(100, pet.happiness + Math.floor(8 * vibeBonus));
@@ -21,17 +21,17 @@ export const feedPet = (pet: Pet): Pet => {
   
   if (newHealth <= 0) {
     newState = 'dead';
-  } else if (newHunger >= 100) {
-    // Śmierć z głodu
+  } else if (newHunger <= 0) {
+    // Śmierć z głodu (odwrócona logika)
     newState = 'dead';
   } else if (newHappiness <= 0) {
     // Śmierć z nieszczęścia
     newState = 'dead';
   } else if (newHealth < 30) {
     newState = 'sick';
-  } else if (newHunger > 80) {
+  } else if (newHunger < 20) {
     newState = 'hungry';
-  } else if (newHappiness > 70 && newHunger < 50) {
+  } else if (newHappiness > 70 && newHunger > 50) {
     newState = 'happy';
   } else {
     newState = 'happy';
@@ -59,18 +59,18 @@ export const playWithPet = (pet: Pet): Pet => {
   const vibeBonus = pet.vibeLevel > 70 ? 1.3 : pet.vibeLevel < 30 ? 0.7 : 1.0;
   
   const newHappiness = Math.min(100, pet.happiness + Math.floor(20 * vibeBonus));
-  const newHunger = Math.min(100, pet.hunger + 15);
+  const newHunger = Math.max(0, pet.hunger - 15); // Zabawa zmniejsza głód (odwrócona logika)
   const newHealth = Math.min(100, pet.health + Math.floor(1 * vibeBonus));
   
   // Określ nowy stan
   let newState: Pet['state'] = 'happy';
   if (newHealth <= 0) {
     newState = 'dead';
-  } else if (newHunger >= 100) {
+  } else if (newHunger <= 0) {
     newState = 'dead';
   } else if (newHappiness <= 0) {
     newState = 'dead';
-  } else if (newHunger > 80) {
+  } else if (newHunger < 20) {
     newState = 'hungry';
   } else if (newHealth < 30) {
     newState = 'sick';
@@ -117,51 +117,53 @@ export const updatePetState = (pet: Pet): Pet => {
   // Vibe Level wpływa na wszystkie statystyki
   const vibeMultiplier = pet.vibeLevel / 100; // 0.0 - 1.0
   
-  // Zwiększ głód (bardziej realistycznie) + wpływ vibe
-  let hungerIncrease = 4;
+  // ZMNIEJSZ głód w czasie (odwrócona logika) + wpływ vibe - ZWOLNIONE!
+  let hungerDecrease = 2; // Podstawowy spadek głodu (zmniejszony z 8 na 2)
   if (pet.vibeLevel < 30) {
-    hungerIncrease += 2; // Niski vibe = szybszy głód
+    hungerDecrease += 2; // Niski vibe = szybszy spadek głodu
+  } else if (pet.vibeLevel < 50) {
+    hungerDecrease += 1; // Średni vibe = szybszy spadek głodu
   } else if (pet.vibeLevel > 80) {
-    hungerIncrease -= 1; // Wysoki vibe = wolniejszy głód
+    hungerDecrease -= 1; // Wysoki vibe = wolniejszy spadek głodu
   }
-  const newHunger = Math.min(100, pet.hunger + hungerIncrease);
+  const newHunger = Math.max(0, pet.hunger - hungerDecrease);
   
-  // Zmniejsz szczęście naturalnie w czasie + wpływ vibe
-  let happinessDecrease = 2;
+  // Zmniejsz szczęście naturalnie w czasie + wpływ vibe - ZWOLNIONE!
+  let happinessDecrease = 1; // Podstawowy spadek szczęścia (zmniejszony z 5 na 1)
   if (pet.vibeLevel < 20) {
-    happinessDecrease += 3; // Bardzo niski vibe = szybki spadek szczęścia
+    happinessDecrease += 2; // Bardzo niski vibe = szybszy spadek szczęścia
   } else if (pet.vibeLevel < 50) {
     happinessDecrease += 1; // Niski vibe = szybszy spadek szczęścia
   } else if (pet.vibeLevel > 80) {
-    happinessDecrease -= 1; // Wysoki vibe = wolniejszy spadek szczęścia
+    happinessDecrease -= 0; // Wysoki vibe = brak spadku szczęścia
   }
   let newHappiness = Math.max(0, pet.happiness - happinessDecrease);
   
   // Dodatkowe kary za zaniedbanie
-  if (newHunger > 70) {
+  if (newHunger < 30) {
     newHappiness = Math.max(0, newHappiness - 3);
   } else if (pet.health < 30) {
     newHappiness = Math.max(0, newHappiness - 2);
   }
   
-  // Zmniejsz zdrowie - zawsze trochę spada + wpływ vibe
-  let healthDecrease = 1; // Podstawowy spadek zdrowia
+  // Zmniejsz zdrowie - zawsze trochę spada + wpływ vibe - ZWOLNIONE!
+  let healthDecrease = 0; // Podstawowy spadek zdrowia (zmniejszony z 2 na 0)
   
   // Wpływ vibe na zdrowie
   if (pet.vibeLevel < 20) {
-    healthDecrease += 3; // Bardzo niski vibe = szybki spadek zdrowia
+    healthDecrease += 1; // Bardzo niski vibe = spadek zdrowia
   } else if (pet.vibeLevel < 50) {
-    healthDecrease += 1; // Niski vibe = szybszy spadek zdrowia
+    healthDecrease += 0; // Niski vibe = brak spadku zdrowia
   } else if (pet.vibeLevel > 80) {
     healthDecrease = 0; // Wysoki vibe = zdrowie nie spada
   }
   
   // Dodatkowe kary za zaniedbanie
-  if (newHunger > 90 || newHappiness < 10) {
+  if (newHunger < 10 || newHappiness < 10) {
     healthDecrease += 8;
-  } else if (newHunger > 70 || newHappiness < 30) {
+  } else if (newHunger < 30 || newHappiness < 30) {
     healthDecrease += 4;
-  } else if (newHunger > 50 || newHappiness < 50) {
+  } else if (newHunger < 50 || newHappiness < 50) {
     healthDecrease += 2;
   }
   
@@ -173,8 +175,8 @@ export const updatePetState = (pet: Pet): Pet => {
   // ŚMIERĆ - główna logika śmierci
   if (newHealth <= 0) {
     newState = 'dead';
-  } else if (newHunger >= 100) {
-    // Śmierć z głodu - bezpośrednio!
+  } else if (newHunger <= 0) {
+    // Śmierć z głodu - bezpośrednio! (odwrócona logika)
     newState = 'dead';
     newHealth = 0;
   } else if (newHappiness <= 0) {
@@ -187,9 +189,9 @@ export const updatePetState = (pet: Pet): Pet => {
     newHealth = Math.min(100, newHealth + 15);
   } else if (newHealth < 30) {
     newState = 'sick';
-  } else if (newHunger > 80) {
+  } else if (newHunger < 20) {
     newState = 'hungry';
-  } else if (newHappiness > 60 && newHunger < 60) {
+  } else if (newHappiness > 60 && newHunger > 50) {
     newState = 'happy';
   }
   
@@ -210,8 +212,21 @@ export const updatePetState = (pet: Pet): Pet => {
     newStage = 'elder';
   }
   
-  // Vibe Level zmienia się w czasie (wolniej)
-  const newVibeLevel = Math.max(0, Math.min(100, pet.vibeLevel - 0.5));
+  // Vibe Level zmienia się w czasie (szybciej) - ZWOLNIONE!
+  let vibeDecrease = 1; // Podstawowy spadek vibe (zmniejszony z 3 na 1)
+  
+  // Wpływ innych statystyk na vibe
+  if (newHunger < 20) {
+    vibeDecrease += 2; // Niski głód obniża vibe
+  }
+  if (newHappiness < 30) {
+    vibeDecrease += 2; // Niskie szczęście obniża vibe
+  }
+  if (newHealth < 30) {
+    vibeDecrease += 1; // Niskie zdrowie obniża vibe
+  }
+  
+  const newVibeLevel = Math.max(0, Math.min(100, pet.vibeLevel - vibeDecrease));
   
   return {
     ...pet,
@@ -292,7 +307,7 @@ export const performVibeCheck = (pet: Pet, selectedEmoji: string): Pet => {
 // Funkcja resetowania gry
 export const resetGame = (): Pet => {
   return {
-    hunger: 20, // Zwierzak zaczyna z lekkim głodem
+    hunger: 100, // Zwierzak zaczyna najedzony (odwrócona logika)
     happiness: 100,
     health: 100,
     state: 'happy',
